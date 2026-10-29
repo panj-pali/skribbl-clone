@@ -1,0 +1,432 @@
+
+/* ================================
+   GLOBAL RESET
+================================ */
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  min-height: 100vh;
+  font-family: Arial, Helvetica, sans-serif;
+  background: #0b0e13;
+  color: #f8fafc;
+}
+
+button,
+input,
+select {
+  font: inherit;
+}
+
+/* ================================
+   HOME PAGE BACKGROUND
+================================ */
+
+.home-container {
+  min-height: 100vh;
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 32px 20px;
+  background:
+    radial-gradient(
+      circle at top left,
+      rgba(99, 102, 241, 0.16),
+      transparent 35%
+    ),
+    radial-gradient(
+      circle at bottom right,
+      rgba(14, 165, 233, 0.10),
+      transparent 35%
+    ),
+    #0b0e13;
+}
+
+/* ================================
+   HOME CARD
+================================ */
+
+.home-card {
+  width: 100%;
+  max-width: 460px;
+  padding: 32px;
+  background: rgba(20, 25, 36, 0.96);
+  border: 1px solid #2c3445;
+  border-radius: 20px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+}
+
+/* ================================
+   HEADING AND DESCRIPTION
+================================ */
+
+.home-card h1 {
+  margin-bottom: 10px;
+  text-align: center;
+  font-size: clamp(26px, 5vw, 34px);
+  font-weight: 800;
+  letter-spacing: -0.8px;
+}
+
+.home-card > p {
+  margin-bottom: 28px;
+  color: #a5b0c3;
+  text-align: center;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+/* ================================
+   LABELS
+================================ */
+
+.home-card > label {
+  display: block;
+  margin-bottom: 9px;
+  color: #dbe3f0;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+/* ================================
+   INPUT FIELDS
+================================ */
+
+.home-card > input {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  padding: 13px 14px;
+  margin-bottom: 18px;
+  color: #ffffff;
+  background: #0d121c;
+  border: 1px solid #343e51;
+  border-radius: 10px;
+  outline: none;
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.home-card > input::placeholder {
+  color: #78859a;
+}
+
+.home-card > input:focus {
+  border-color: #818cf8;
+  box-shadow: 0 0 0 3px rgba(129, 140, 248, 0.12);
+}
+
+/* ================================
+   ROOM SETTINGS CONTAINER
+================================ */
+
+.room-settings {
+  width: 100%;
+  margin: 22px 0;
+  padding: 14px;
+  background: #111722;
+  border: 1px solid #30394b;
+  border-radius: 13px;
+}
+
+/* ================================
+   ROOM SETTINGS TOGGLE BUTTON
+================================ */
+
+.settings-toggle {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 13px 14px;
+  color: #ffffff;
+  background: #222b3b;
+  border: 1px solid #3b465c;
+  border-radius: 9px;
+  font-size: 15px;
+  font-weight: 700;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    background 0.2s ease,
+    border-color 0.2s ease,
+    transform 0.2s ease;
+}
+
+.settings-toggle:hover {
+  background: #2c374b;
+  border-color: #6678a0;
+}
+
+.settings-toggle:active {
+  transform: scale(0.99);
+}
+
+.settings-toggle:focus-visible {
+  outline: 2px solid #818cf8;
+  outline-offset: 3px;
+}
+
+/* ================================
+   SETTINGS GRID
+================================ */
+
+.settings-content {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  margin-top: 18px;
+  animation: settingsOpen 0.25s ease;
+}
+
+/* ================================
+   INDIVIDUAL SETTINGS
+================================ */
+
+.setting-group {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  gap: 9px;
+}
+
+.setting-group label {
+  color: #cbd5e1;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.5;
+}
+
+/* ================================
+   DROPDOWN SELECT
+================================ */
+
+.setting-group select {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  padding: 12px 10px;
+  color: #f8fafc;
+  background: #0b1019;
+  border: 1px solid #3b465c;
+  border-radius: 9px;
+  outline: none;
+  cursor: pointer;
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.setting-group select:hover {
+  border-color: #64748b;
+}
+
+.setting-group select:focus {
+  border-color: #818cf8;
+  box-shadow: 0 0 0 3px rgba(129, 140, 248, 0.12);
+}
+
+.setting-group select option {
+  color: #ffffff;
+  background: #171c27;
+}
+
+/* ================================
+   CREATE ROOM AND JOIN ROOM BUTTONS
+================================ */
+
+.home-card > button:not(.settings-toggle) {
+  display: block;
+  width: 100%;
+  min-height: 46px;
+  padding: 13px 16px;
+  color: #ffffff;
+  background: linear-gradient(135deg, #6366f1, #4f46e5);
+  border: none;
+  border-radius: 10px;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease,
+    filter 0.2s ease;
+}
+
+.home-card > button:not(.settings-toggle):hover {
+  filter: brightness(1.12);
+  box-shadow: 0 8px 22px rgba(79, 70, 229, 0.25);
+  transform: translateY(-1px);
+}
+
+.home-card > button:not(.settings-toggle):active {
+  transform: translateY(0);
+}
+
+.home-card > button:not(.settings-toggle):focus-visible {
+  outline: 2px solid #a5b4fc;
+  outline-offset: 3px;
+}
+
+/* ================================
+   OR JOIN A ROOM
+================================ */
+
+.home-card h4 {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 25px 0 18px;
+  color: #94a3b8;
+  font-size: 12px;
+  font-weight: 700;
+  text-align: center;
+  letter-spacing: 1.2px;
+}
+
+.home-card h4::before,
+.home-card h4::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: #30394b;
+}
+
+/* ================================
+   SETTINGS OPEN ANIMATION
+================================ */
+
+@keyframes settingsOpen {
+  from {
+    opacity: 0;
+    transform: translateY(-7px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ================================
+   TABLET RESPONSIVE
+================================ */
+
+@media (max-width: 768px) {
+  .home-container {
+    padding: 24px 16px;
+  }
+
+  .home-card {
+    max-width: 440px;
+    padding: 28px 24px;
+  }
+
+  .settings-content {
+    gap: 14px;
+  }
+}
+
+/* ================================
+   MOBILE RESPONSIVE
+================================ */
+
+@media (max-width: 480px) {
+  .home-container {
+    align-items: flex-start;
+    padding: 24px 12px;
+  }
+
+  .home-card {
+    max-width: 100%;
+    padding: 23px 17px;
+    border-radius: 16px;
+  }
+
+  .home-card h1 {
+    font-size: 27px;
+  }
+
+  .home-card > p {
+    margin-bottom: 24px;
+    font-size: 13px;
+  }
+
+  .room-settings {
+    margin: 18px 0;
+    padding: 11px;
+  }
+
+  .settings-toggle {
+    padding: 12px;
+    font-size: 14px;
+  }
+
+  .settings-content {
+    grid-template-columns: 1fr;
+    gap: 15px;
+    margin-top: 16px;
+  }
+
+  .setting-group select {
+    padding: 12px;
+    font-size: 14px;
+  }
+
+  .home-card > input {
+    padding: 12px;
+    font-size: 14px;
+  }
+
+  .home-card > button:not(.settings-toggle) {
+    min-height: 45px;
+    font-size: 14px;
+  }
+}
+
+/* ================================
+   SMALL MOBILE
+================================ */
+
+@media (max-width: 320px) {
+  .home-container {
+    padding: 16px 8px;
+  }
+
+  .home-card {
+    padding: 19px 12px;
+  }
+
+  .home-card h1 {
+    font-size: 23px;
+  }
+
+  .room-settings {
+    padding: 8px;
+  }
+
+  .settings-toggle {
+    padding: 11px 9px;
+    font-size: 13px;
+  }
+}
+
+/* ================================
+   REDUCED MOTION ACCESSIBILITY
+================================ */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
