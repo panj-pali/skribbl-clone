@@ -380,3 +380,37 @@ button:disabled {
     padding: 9px;
   }
 }
+/* LEADERBOARD */
+
+.leaderboard {
+  width: 100%;
+  max-width: 700px;
+  margin: 20px auto;
+  padding: 20px;
+  background: #e0e8e2;
+  border: 2px solid #333;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+}
+
+.leaderboard h2 {
+  text-align: center;
+  color:green;
+  margin-bottom: 18px;
+}
+
+.leaderboard-player {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px;
+  margin-bottom: 8px;
+  background: #f2f2f2;
+  border-radius: 8px;
+}
+
+.leaderboard-wait {
+  text-align: center;
+  margin-top: 15px;
+  font-weight: 600;
+}

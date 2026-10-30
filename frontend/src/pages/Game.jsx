@@ -7,6 +7,8 @@ function Game({ roomCode, players = [], onPlayersUpdated }) {
   const canvasRef = useRef(null);
   const isDrawing = useRef(false);
   const lastPoint = useRef(null);
+  const currentStrokeId = useRef(null);
+  const drawingHistoryRef = useRef([]);
   const choosingWordRef = useRef(false);
   const gameOverRef = useRef(false);
   const chatEndRef = useRef(null);
@@ -23,6 +25,7 @@ function Game({ roomCode, players = [], onPlayersUpdated }) {
   const [wordOptions, setWordOptions] = useState([]);
   const [selectedWord, setSelectedWord] = useState("");
   const [wordLength, setWordLength] = useState(0);
+  const [wordHint, setWordHint] = useState("");
   const [isChoosingWord, setIsChoosingWord] = useState(false);
 
   const [guess, setGuess] = useState("");
@@ -31,9 +34,13 @@ function Game({ roomCode, players = [], onPlayersUpdated }) {
 
   const [gameOver, setGameOver] = useState(false);
   const [winnerIds, setWinnerIds] = useState([]);
+
   const [currentRound, setCurrentRound] = useState(1);
   const [totalRounds, setTotalRounds] = useState(1);
   const [remainingSeconds, setRemainingSeconds] = useState(null);
+
+  const [leaderboard, setLeaderboard] = useState([]);
+  const [showLeaderboard, setShowLeaderboard] = useState(false);
 
   const [chatMessages, setChatMessages] = useState([]);
   const [chatInput, setChatInput] = useState("");
@@ -44,7 +51,6 @@ function Game({ roomCode, players = [], onPlayersUpdated }) {
     if (!canvas) return null;
 
     const rect = canvas.getBoundingClientRect();
-
     if (!rect.width || !rect.height) return null;
 
     return {
@@ -69,8 +75,29 @@ function Game({ roomCode, players = [], onPlayersUpdated }) {
     context.stroke();
   }
 
+  function redrawCanvas(strokes = drawingHistoryRef.current) {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const context = canvas.getContext("2d");
+    context.clearRect(0, 0, canvas.width, canvas.height);
+
+    strokes.forEach((stroke) => {
+      (stroke.segments || []).forEach((segment) => {
+        drawLine(
+          segment.isStart ? segment.x : segment.lastX,
+          segment.isStart ? segment.y : segment.lastY,
+          segment.x,
+          segment.y,
+          stroke.color,
+          stroke.brushSize
+        );
+      });
+    });
+  }
+
   function startDrawing(event) {
-    if (!isDrawer || !selectedWord || gameOver) return;
+    if (!isDrawer || !selectedWord || gameOver || showLeaderboard) return;
 
     const position = getPosition(event);
     if (!position) return;
@@ -91,20 +118,39 @@ function Game({ roomCode, players = [], onPlayersUpdated }) {
       brushSize
     );
 
-    socket.emit("drawing", {
-      roomCode,
+    currentStrokeId.current = `${Date.now()}-${Math.random()}`;
+    const firstSegment = {
       x: position.x,
       y: position.y,
       lastX: position.x,
       lastY: position.y,
+      isStart: true,
+    };
+
+    drawingHistoryRef.current.push({
+      strokeId: currentStrokeId.current,
       color: brushColor,
       brushSize,
-      isStart: true,
+      segments: [firstSegment],
+    });
+
+    socket.emit("drawing", {
+      roomCode,
+      strokeId: currentStrokeId.current,
+      ...firstSegment,
+      color: brushColor,
+      brushSize,
     });
   }
 
   function draw(event) {
-    if (!isDrawer || !selectedWord || !isDrawing.current || gameOver) {
+    if (
+      !isDrawer ||
+      !selectedWord ||
+      !isDrawing.current ||
+      gameOver ||
+      showLeaderboard
+    ) {
       return;
     }
 
@@ -120,15 +166,25 @@ function Game({ roomCode, players = [], onPlayersUpdated }) {
       brushSize
     );
 
-    socket.emit("drawing", {
-      roomCode,
+    const segment = {
       x: position.x,
       y: position.y,
       lastX: lastPoint.current.x,
       lastY: lastPoint.current.y,
+      isStart: false,
+    };
+
+    const activeStroke =
+      drawingHistoryRef.current[drawingHistoryRef.current.length - 1];
+
+    if (activeStroke) activeStroke.segments.push(segment);
+
+    socket.emit("drawing", {
+      roomCode,
+      strokeId: currentStrokeId.current,
+      ...segment,
       color: brushColor,
       brushSize,
-      isStart: false,
     });
 
     lastPoint.current = position;
@@ -137,10 +193,11 @@ function Game({ roomCode, players = [], onPlayersUpdated }) {
   function stopDrawing() {
     isDrawing.current = false;
     lastPoint.current = null;
+    currentStrokeId.current = null;
   }
 
   function clearCanvas() {
-    if (!isDrawer || !selectedWord || gameOver) return;
+    if (!isDrawer || !selectedWord || gameOver || showLeaderboard) return;
 
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -152,12 +209,23 @@ function Game({ roomCode, players = [], onPlayersUpdated }) {
       canvas.height
     );
 
+    drawingHistoryRef.current = [];
+    stopDrawing();
     socket.emit("clear-canvas", roomCode);
+  }
+
+  function undoLastStroke() {
+    if (!isDrawer || !selectedWord || gameOver || showLeaderboard) return;
+    if (drawingHistoryRef.current.length === 0) return;
+
+    stopDrawing();
+    socket.emit("undo-drawing", roomCode);
   }
 
   function handleSelectWord(word) {
     if (
       gameOver ||
+      showLeaderboard ||
       !isDrawer ||
       selectedWord ||
       isChoosingWord ||
@@ -169,6 +237,7 @@ function Game({ roomCode, players = [], onPlayersUpdated }) {
     choosingWordRef.current = true;
     setIsChoosingWord(true);
     setWordOptions([]);
+    setWordHint("");
     setMessage("Selecting word...");
 
     socket.emit("select-word", { roomCode, word });
@@ -177,7 +246,14 @@ function Game({ roomCode, players = [], onPlayersUpdated }) {
   function handleSubmitGuess(event) {
     event.preventDefault();
 
-    if (!guess.trim() || gameOver || remainingSeconds === 0) return;
+    if (
+      !guess.trim() ||
+      gameOver ||
+      showLeaderboard ||
+      remainingSeconds === 0
+    ) {
+      return;
+    }
 
     socket.emit("submit-guess", {
       roomCode,
@@ -235,16 +311,26 @@ function Game({ roomCode, players = [], onPlayersUpdated }) {
       setIsChoosingWord(false);
       setGameOver(false);
       setWinnerIds([]);
+
+      setShowLeaderboard(false);
+      setLeaderboard([]);
+
       setIsDrawer(data.drawerId === socket.id);
       setCurrentRound(data.currentRound ?? data.round ?? 1);
       setTotalRounds(data.totalRounds ?? 1);
       setRemainingSeconds(null);
+
       setSelectedWord("");
       setWordLength(0);
+      setWordHint("");
       setWordOptions([]);
       setGuess("");
 
+      stopDrawing();
+      drawingHistoryRef.current = [];
+
       const canvas = canvasRef.current;
+
       if (canvas) {
         canvas.getContext("2d").clearRect(
           0,
@@ -270,12 +356,19 @@ function Game({ roomCode, players = [], onPlayersUpdated }) {
     }
 
     function handleWordOptions(data) {
+      console.log("WORD OPTIONS RECEIVED:", data);
+      console.log("MY SOCKET ID:", socket.id);
+
       if (data.roomCode && data.roomCode !== roomCode) return;
       if (choosingWordRef.current || gameOverRef.current) return;
+
+      setShowLeaderboard(false);
+      setLeaderboard([]);
 
       setWordOptions(data.wordOptions || []);
       setSelectedWord("");
       setWordLength(0);
+      setWordHint("");
       setMessage("Choose a word to draw.");
     }
 
@@ -286,7 +379,9 @@ function Game({ roomCode, players = [], onPlayersUpdated }) {
       setIsChoosingWord(false);
       setSelectedWord(data.word);
       setWordOptions([]);
+      drawingHistoryRef.current = [];
       setWordLength(data.word.length);
+      setWordHint("");
       setMessage(`Your word is: ${data.word}`);
     }
 
@@ -294,17 +389,44 @@ function Game({ roomCode, players = [], onPlayersUpdated }) {
       if (data.roomCode && data.roomCode !== roomCode) return;
 
       setWordLength(data.wordLength);
-      setMessage(`Guess the word: ${data.wordLength} letters`);
+      setWordHint(
+        data.maskedWord || "-".repeat(data.wordLength)
+      );
+      setMessage("Guess the word!");
     }
 
     function handleRemoteDrawing(data) {
       if (data.roomCode && data.roomCode !== roomCode) return;
+      if (showLeaderboard) return;
+
+      const segment = {
+        x: data.x,
+        y: data.y,
+        lastX: data.lastX,
+        lastY: data.lastY,
+        isStart: data.isStart === true,
+      };
+
+      let activeStroke =
+        drawingHistoryRef.current[drawingHistoryRef.current.length - 1];
+
+      if (segment.isStart || !activeStroke) {
+        activeStroke = {
+          strokeId: data.strokeId || `${Date.now()}-${Math.random()}`,
+          color: data.color,
+          brushSize: data.brushSize,
+          segments: [],
+        };
+        drawingHistoryRef.current.push(activeStroke);
+      }
+
+      activeStroke.segments.push(segment);
 
       drawLine(
-        data.isStart ? data.x : data.lastX,
-        data.isStart ? data.y : data.lastY,
-        data.x,
-        data.y,
+        segment.isStart ? segment.x : segment.lastX,
+        segment.isStart ? segment.y : segment.lastY,
+        segment.x,
+        segment.y,
         data.color,
         data.brushSize
       );
@@ -312,6 +434,9 @@ function Game({ roomCode, players = [], onPlayersUpdated }) {
 
     function handleRemoteClear(data) {
       if (data?.roomCode && data.roomCode !== roomCode) return;
+
+      drawingHistoryRef.current = [];
+      stopDrawing();
 
       const canvas = canvasRef.current;
       if (!canvas) return;
@@ -322,6 +447,16 @@ function Game({ roomCode, players = [], onPlayersUpdated }) {
         canvas.width,
         canvas.height
       );
+    }
+
+    function handleDrawingHistory(data) {
+      if (data?.roomCode && data.roomCode !== roomCode) return;
+
+      drawingHistoryRef.current = Array.isArray(data.strokes)
+        ? data.strokes
+        : [];
+
+      redrawCanvas(drawingHistoryRef.current);
     }
 
     function handleGuessResult(data) {
@@ -355,8 +490,26 @@ function Game({ roomCode, players = [], onPlayersUpdated }) {
 
       setMessage(
         data.reason === "time-up"
-          ? "⏰ Time's up! Next round starting..."
-          : "Round complete! Next round starting..."
+          ? "⏰ Time's up! Showing leaderboard..."
+          : "Round complete! Showing leaderboard..."
+      );
+    }
+
+    function handleLeaderboardUpdated(data) {
+      if (data.roomCode !== roomCode) return;
+
+      setLeaderboard(
+        Array.isArray(data.leaderboard) ? data.leaderboard : []
+      );
+
+      setShowLeaderboard(true);
+      setRemainingSeconds(0);
+      stopDrawing();
+
+      setMessage(
+        data.isFinalRound
+          ? "🏆 Final Leaderboard!"
+          : "🏆 Round complete! Leaderboard"
       );
     }
 
@@ -368,9 +521,11 @@ function Game({ roomCode, players = [], onPlayersUpdated }) {
 
       setIsChoosingWord(false);
       setGameOver(true);
+      setShowLeaderboard(true);
       setIsDrawer(false);
       setWordOptions([]);
       setSelectedWord("");
+      setWordHint("");
       setGuess("");
       setRemainingSeconds(0);
       stopDrawing();
@@ -473,9 +628,11 @@ function Game({ roomCode, players = [], onPlayersUpdated }) {
     socket.on("word-hint", handleWordHint);
     socket.on("drawing", handleRemoteDrawing);
     socket.on("clear-canvas", handleRemoteClear);
+    socket.on("drawing-history", handleDrawingHistory);
     socket.on("guess-result", handleGuessResult);
     socket.on("timer-update", handleTimerUpdate);
     socket.on("round-ended", handleRoundEnded);
+    socket.on("leaderboard-updated", handleLeaderboardUpdated);
     socket.on("game-over", handleGameOver);
     socket.on("guess-error", handleGuessError);
     socket.on("room-error", handleRoomError);
@@ -496,9 +653,11 @@ function Game({ roomCode, players = [], onPlayersUpdated }) {
       socket.off("word-hint", handleWordHint);
       socket.off("drawing", handleRemoteDrawing);
       socket.off("clear-canvas", handleRemoteClear);
+      socket.off("drawing-history", handleDrawingHistory);
       socket.off("guess-result", handleGuessResult);
       socket.off("timer-update", handleTimerUpdate);
       socket.off("round-ended", handleRoundEnded);
+      socket.off("leaderboard-updated", handleLeaderboardUpdated);
       socket.off("game-over", handleGameOver);
       socket.off("guess-error", handleGuessError);
       socket.off("room-error", handleRoomError);
@@ -532,17 +691,45 @@ function Game({ roomCode, players = [], onPlayersUpdated }) {
           Round: <strong>{currentRound}</strong> / {totalRounds}
         </p>
 
-        <p className="round-timer">
-          ⏱️ Time left: <strong>{timerDisplay}</strong>
-        </p>
+        {!showLeaderboard && (
+          <p className="round-timer">
+            ⏱️ Time left: <strong>{timerDisplay}</strong>
+          </p>
+        )}
       </header>
 
-      <div className="game-layout">
-        <main className="drawing-section">
-          {gameOver && (
+      {showLeaderboard && (
+        <section className="leaderboard">
+          <h2>
+            {gameOver
+              ? "🏆 Final Leaderboard"
+              : "🏆 Round Leaderboard"}
+          </h2>
+
+          {leaderboard.length === 0 ? (
+            <p>No leaderboard data available.</p>
+          ) : (
+            leaderboard.map((player) => (
+              <div className="leaderboard-player" key={player.id}>
+                <span>
+                  {player.rank === 1
+                    ? "🥇"
+                    : player.rank === 2
+                    ? "🥈"
+                    : player.rank === 3
+                    ? "🥉"
+                    : `#${player.rank}`}
+                  {" "}{player.name}
+                </span>
+
+                <strong>{player.score} points</strong>
+              </div>
+            ))
+          )}
+
+          {gameOver ? (
             <div className="winner-banner">
               <h2>🏆 Game Over!</h2>
-
               {players
                 .filter((player) =>
                   winnerIds.includes(String(player.id))
@@ -554,205 +741,232 @@ function Game({ roomCode, players = [], onPlayersUpdated }) {
                   </p>
                 ))}
             </div>
-          )}
-
-          {isDrawer && wordOptions.length > 0 && !gameOver && (
-            <div className="word-options">
-              <h3>Choose a word</h3>
-
-              {wordOptions.map((word) => (
-                <button
-                  key={word}
-                  type="button"
-                  disabled={isChoosingWord}
-                  onClick={() => handleSelectWord(word)}
-                >
-                  {word}
-                </button>
-              ))}
-            </div>
-          )}
-
-          {isChoosingWord && !gameOver && (
-            <p>Please wait, selecting your word...</p>
-          )}
-
-          {isDrawer && selectedWord && !gameOver && (
-            <p>
-              Your word: <strong>{selectedWord}</strong>
+          ) : (
+            <p className="leaderboard-wait">
+              Next round starting soon...
             </p>
           )}
+        </section>
+      )}
 
-          <p className="game-message">{message}</p>
+      {!showLeaderboard && (
+        <div className="game-layout">
+          <main className="drawing-section">
+            {isDrawer && wordOptions.length > 0 && !gameOver && (
+              <div className="word-options">
+                <h3>Choose a word</h3>
 
-          <div className="drawing-tools">
-            <label className="tool-control">
-              <span>Color</span>
-              <input
-                type="color"
-                value={brushColor}
-                disabled={!isDrawer || !selectedWord || gameOver}
-                onChange={(event) => setBrushColor(event.target.value)}
-              />
-            </label>
-
-            <label className="tool-control brush-size-control">
-              <span>Brush Size: {brushSize}px</span>
-              <input
-                type="range"
-                min="1"
-                max="25"
-                step="1"
-                value={brushSize}
-                disabled={!isDrawer || !selectedWord || gameOver}
-                onChange={(event) =>
-                  setBrushSize(Number(event.target.value))
-                }
-              />
-            </label>
-
-            <button
-              type="button"
-              onClick={clearCanvas}
-              disabled={!isDrawer || !selectedWord || gameOver}
-            >
-              Clear Canvas
-            </button>
-          </div>
-
-          <canvas
-            ref={canvasRef}
-            width={700}
-            height={450}
-            onPointerDown={startDrawing}
-            onPointerMove={draw}
-            onPointerUp={stopDrawing}
-            onPointerCancel={stopDrawing}
-            onLostPointerCapture={stopDrawing}
-            style={{
-              border: "2px solid #333",
-              backgroundColor: "#fff",
-              width: "100%",
-              maxWidth: "700px",
-              aspectRatio: "700 / 450",
-              display: "block",
-              touchAction: "none",
-              cursor:
-                isDrawer && selectedWord && !gameOver
-                  ? "crosshair"
-                  : "default",
-            }}
-          />
-
-          {!isDrawer && !gameOver && (
-            <form onSubmit={handleSubmitGuess}>
-              <input
-                type="text"
-                placeholder={
-                  wordLength > 0
-                    ? `Guess the word (${wordLength} letters)...`
-                    : "Guess the word..."
-                }
-                value={guess}
-                onChange={(event) => setGuess(event.target.value)}
-                disabled={remainingSeconds === 0}
-              />
-
-              <button
-                type="submit"
-                disabled={!guess.trim() || remainingSeconds === 0}
-              >
-                Submit Guess
-              </button>
-            </form>
-          )}
-        </main>
-
-        <aside className="game-sidebar">
-          <section className="players-section">
-            <h3>Players ({players.length})</h3>
-
-            {players.map((player) => (
-              <div className="player-card" key={player.id}>
-                <span>
-                  {player.name}
-
-                  {gameOver &&
-                    winnerIds.includes(String(player.id)) && (
-                      <strong> 🏆 Winner</strong>
-                    )}
-
-                  {player.id === socket.id && <small> (You)</small>}
-                </span>
-
-                <strong>{player.score ?? 0} points</strong>
+                {wordOptions.map((word) => (
+                  <button
+                    key={word}
+                    type="button"
+                    disabled={isChoosingWord}
+                    onClick={() => handleSelectWord(word)}
+                  >
+                    {word}
+                  </button>
+                ))}
               </div>
-            ))}
-          </section>
-
-          <section className="chat-section">
-            <h3>💬 Room Chat</h3>
-
-            <div className="chat-messages" aria-live="polite">
-              {chatMessages.map((item) => (
-                <div
-                  key={item.id}
-                  className={
-                    item.type === "system"
-                      ? "chat-message system-message"
-                      : "chat-message"
-                  }
-                >
-                  {item.type === "system" ? (
-                    <span>{item.message}</span>
-                  ) : (
-                    <>
-                      <strong>
-                        {item.senderName}
-                        {item.senderId === socket.id ? " (You)" : ""}:
-                      </strong>{" "}
-                      <span>{item.message}</span>
-                    </>
-                  )}
-                </div>
-              ))}
-
-              <div ref={chatEndRef} />
-            </div>
-
-            {chatError && (
-              <p className="chat-error" role="alert">
-                {chatError}
-              </p>
             )}
 
-            <form className="chat-form" onSubmit={handleSendChat}>
-              <input
-                type="text"
-                placeholder="Type a message..."
-                value={chatInput}
-                maxLength={200}
-                onChange={(event) => {
-                  setChatInput(event.target.value);
-                  setChatError("");
-                }}
-                disabled={gameOver}
-              />
+            {isChoosingWord && !gameOver && (
+              <p>Please wait, selecting your word...</p>
+            )}
+
+            {!gameOver && (
+              <div className="word-display">
+                {isDrawer && selectedWord ? (
+                  <p>
+                    Your word: <strong>{selectedWord}</strong>
+                  </p>
+                ) : (
+                  wordLength > 0 && (
+                    <p>
+                      Guess the word:{" "}
+                      <strong className="masked-word">
+                        {wordHint || "-".repeat(wordLength)}
+                      </strong>
+                    </p>
+                  )
+                )}
+              </div>
+            )}
+
+            <p className="game-message">{message}</p>
+
+            <div className="drawing-tools">
+              <label className="tool-control">
+                <span>Color</span>
+
+                <input
+                  type="color"
+                  value={brushColor}
+                  disabled={!isDrawer || !selectedWord || gameOver}
+                  onChange={(event) => setBrushColor(event.target.value)}
+                />
+              </label>
+
+              <label className="tool-control brush-size-control">
+                <span>Brush Size: {brushSize}px</span>
+
+                <input
+                  type="range"
+                  min="1"
+                  max="25"
+                  step="1"
+                  value={brushSize}
+                  disabled={!isDrawer || !selectedWord || gameOver}
+                  onChange={(event) =>
+                    setBrushSize(Number(event.target.value))
+                  }
+                />
+              </label>
 
               <button
-                type="submit"
-                disabled={!chatInput.trim() || gameOver}
+                type="button"
+                onClick={undoLastStroke}
+                disabled={!isDrawer || !selectedWord || gameOver || showLeaderboard}
               >
-                Send
+                Undo
               </button>
-            </form>
 
-            <small className="chat-counter">
-              {chatInput.length}/200 characters
-            </small>
-          </section>
-        </aside>
-      </div>
+              <button
+                type="button"
+                onClick={clearCanvas}
+                disabled={!isDrawer || !selectedWord || gameOver}
+              >
+                Clear Canvas
+              </button>
+            </div>
+
+            <canvas
+              ref={canvasRef}
+              width={700}
+              height={450}
+              onPointerDown={startDrawing}
+              onPointerMove={draw}
+              onPointerUp={stopDrawing}
+              onPointerCancel={stopDrawing}
+              onLostPointerCapture={stopDrawing}
+              style={{
+                border: "2px solid #333",
+                backgroundColor: "#fff",
+                width: "100%",
+                maxWidth: "700px",
+                aspectRatio: "700 / 450",
+                display: "block",
+                touchAction: "none",
+                cursor:
+                  isDrawer && selectedWord && !gameOver
+                    ? "crosshair"
+                    : "default",
+              }}
+            />
+
+            {!isDrawer && !gameOver && (
+              <form onSubmit={handleSubmitGuess}>
+                <input
+                  type="text"
+                  placeholder={
+                    wordLength > 0
+                      ? `Guess the word (${wordLength} letters)...`
+                      : "Guess the word..."
+                  }
+                  value={guess}
+                  onChange={(event) => setGuess(event.target.value)}
+                  disabled={remainingSeconds === 0}
+                />
+
+                <button
+                  type="submit"
+                  disabled={!guess.trim() || remainingSeconds === 0}
+                >
+                  Submit Guess
+                </button>
+              </form>
+            )}
+          </main>
+
+          <aside className="game-sidebar">
+            <section className="players-section">
+              <h3>Players ({players.length})</h3>
+
+              {players.map((player) => (
+                <div className="player-card" key={player.id}>
+                  <span>
+                    {player.name}
+                    {player.id === socket.id && <small> (You)</small>}
+                  </span>
+
+                  <strong>{player.score ?? 0} points</strong>
+                </div>
+              ))}
+            </section>
+
+            <section className="chat-section">
+              <h3>💬 Room Chat</h3>
+
+              <div className="chat-messages" aria-live="polite">
+                {chatMessages.map((item) => (
+                  <div
+                    key={item.id}
+                    className={
+                      item.type === "system"
+                        ? "chat-message system-message"
+                        : "chat-message"
+                    }
+                  >
+                    {item.type === "system" ? (
+                      <span>{item.message}</span>
+                    ) : (
+                      <>
+                        <strong>
+                          {item.senderName}
+                          {item.senderId === socket.id ? " (You)" : ""}:
+                        </strong>{" "}
+                        <span>{item.message}</span>
+                      </>
+                    )}
+                  </div>
+                ))}
+
+                <div ref={chatEndRef} />
+              </div>
+
+              {chatError && (
+                <p className="chat-error" role="alert">
+                  {chatError}
+                </p>
+              )}
+
+              <form className="chat-form" onSubmit={handleSendChat}>
+                <input
+                  type="text"
+                  placeholder="Type a message..."
+                  value={chatInput}
+                  maxLength={200}
+                  onChange={(event) => {
+                    setChatInput(event.target.value);
+                    setChatError("");
+                  }}
+                  disabled={gameOver}
+                />
+
+                <button
+                  type="submit"
+                  disabled={!chatInput.trim() || gameOver}
+                >
+                  Send
+                </button>
+              </form>
+
+              <small className="chat-counter">
+                {chatInput.length}/200 characters
+              </small>
+            </section>
+          </aside>
+        </div>
+      )}
     </div>
   );
 }

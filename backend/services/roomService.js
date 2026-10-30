@@ -1,3 +1,4 @@
+
 const generateRoomCode = require("../utils/generateRoomCode");
 
 const rooms = {};
@@ -113,6 +114,24 @@ function getRoom(roomCode) {
   return rooms[roomCode.trim().toUpperCase()] || null;
 }
 
+// GET SORTED LEADERBOARD
+function getLeaderboard(roomCode) {
+  const room = getRoom(roomCode);
+
+  if (!room) {
+    return null;
+  }
+
+  return [...room.players]
+    .sort((a, b) => b.score - a.score)
+    .map((player, index) => ({
+      rank: index + 1,
+      id: player.id,
+      name: player.name,
+      score: player.score,
+    }));
+}
+
 // JOIN ROOM
 function joinRoom(roomCode, playerName, socketId) {
   const room = getRoom(roomCode);
@@ -176,7 +195,6 @@ function startGame(roomCode, socketId) {
   room.guessedPlayers = [];
   room.roundEnding = false;
 
-  // Use configured number of word choices
   room.wordOptions = getWordOptions(
     room.settings.wordCount
   );
@@ -242,6 +260,7 @@ function checkGuess(roomCode, socketId, guess) {
     return { error: "The round is not active." };
   }
 
+  // Drawer cannot guess
   if (socketId === room.drawerId) {
     return { error: "The drawer cannot guess the word." };
   }
@@ -257,7 +276,7 @@ function checkGuess(roomCode, socketId, guess) {
   // Prevent repeated guesses after a correct answer
   if (room.guessedPlayers.includes(socketId)) {
     return {
-      correct: false,
+      correct: true,
       alreadyGuessed: true,
       roundComplete: false,
       room,
@@ -292,7 +311,7 @@ function checkGuess(roomCode, socketId, guess) {
   // CORRECT GUESS: player gets 10 points
   player.score += 10;
 
-  // Drawer gets 5 points
+  // Drawer gets 5 points for each correct guess
   const drawer = room.players.find(
     (item) => item.id === room.drawerId
   );
@@ -301,19 +320,32 @@ function checkGuess(roomCode, socketId, guess) {
     drawer.score += 5;
   }
 
+  // Add player to correctly guessed players
   room.guessedPlayers.push(socketId);
-  room.roundEnding = true;
+
+  // Total players who need to guess (excluding drawer)
+  const totalGuessers = room.players.length - 1;
+
+  // Round ends only when ALL guessers have guessed correctly
+  const roundComplete =
+    room.guessedPlayers.length >= totalGuessers;
+
+  if (roundComplete) {
+    room.roundEnding = true;
+  }
 
   return {
     correct: true,
     alreadyGuessed: false,
-    roundComplete: true,
+    roundComplete,
     message: `Congratulations, ${player.name}! You earned 10 points!`,
     playerName: player.name,
     pointsEarned: 10,
     drawerPointsEarned: drawer ? 5 : 0,
     attempts: player.attempts,
     wrongAttempts: player.wrongAttempts,
+    guessedCount: room.guessedPlayers.length,
+    totalGuessers,
     room,
   };
 }
@@ -403,4 +435,5 @@ module.exports = {
   selectWord,
   checkGuess,
   startNextRound,
+  getLeaderboard,
 };

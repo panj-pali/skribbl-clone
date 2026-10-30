@@ -6,6 +6,7 @@ const {
   selectWord,
   checkGuess,
   startNextRound,
+  getLeaderboard,
 } = require("../services/roomService");
 
 const ROUND_DURATION = 120;
@@ -84,6 +85,79 @@ module.exports = function (io) {
     });
   }
 
+  function sendGameStartedToPlayer(socket, room) {
+    socket.emit("game-started", {
+      roomCode: room.code,
+      players: room.players,
+      hostId: room.hostId,
+      drawerId: room.drawerId,
+      round: room.round,
+      currentRound: room.round,
+      totalRounds: room.totalRounds,
+      settings: room.settings || {},
+    });
+  }
+
+  // ---------------- WORD HINT HELPERS ----------------
+
+  function createMaskedWord(room) {
+    if (!room || !room.currentWord) return "";
+
+    const revealed = room.revealedIndices || [];
+
+    return room.currentWord
+      .split("")
+      .map((letter, index) => {
+        if (letter === " ") return " ";
+        if (revealed.includes(index)) return letter.toUpperCase();
+        return "-";
+      })
+      .join("");
+  }
+
+  function sendWordHint(room, target = room.code) {
+    if (!room || !room.currentWord) return;
+
+    io.to(target).emit("word-hint", {
+      roomCode: room.code,
+      wordLength: room.currentWord.length,
+      maskedWord: createMaskedWord(room),
+    });
+  }
+
+  function revealNextLetter(room) {
+    if (!room || !room.currentWord || room.roundEnding) return;
+
+    if (!Array.isArray(room.revealedIndices)) {
+      room.revealedIndices = [];
+    }
+
+    const unrevealed = [];
+
+    for (let i = 0; i < room.currentWord.length; i++) {
+      if (
+        room.currentWord[i] !== " " &&
+        !room.revealedIndices.includes(i)
+      ) {
+        unrevealed.push(i);
+      }
+    }
+
+    if (unrevealed.length === 0) return;
+
+    const randomIndex = Math.floor(
+      Math.random() * unrevealed.length
+    );
+
+    room.revealedIndices.push(unrevealed[randomIndex]);
+
+    io.to(room.code).emit("word-hint", {
+      roomCode: room.code,
+      wordLength: room.currentWord.length,
+      maskedWord: createMaskedWord(room),
+    });
+  }
+
   // ---------------- TIMER HELPERS ----------------
 
   function clearRoundTimer(roomCode) {
@@ -107,7 +181,9 @@ module.exports = function (io) {
   function startRoundTimer(room) {
     clearRoundTimer(room.code);
 
-    const duration = Number(room.settings?.drawTime) || ROUND_DURATION;
+    const duration =
+      Number(room.settings?.drawTime) || ROUND_DURATION;
+
     const endsAt = Date.now() + duration * 1000;
 
     function emitTime() {
@@ -145,7 +221,10 @@ module.exports = function (io) {
       }
     }, 1000);
 
-    roundTimers.set(room.code, { interval, endsAt });
+    roundTimers.set(room.code, {
+      interval,
+      endsAt,
+    });
   }
 
   // ---------------- ROUND END ----------------
@@ -158,7 +237,10 @@ module.exports = function (io) {
     if (!room || room.status !== "playing") return;
 
     endingRounds.add(roomCode);
+    room.roundEnding = true;
+
     clearRoundTimer(roomCode);
+    clearRoundEndTimeout(roomCode);
 
     const endMessage =
       reason === "time-up"
@@ -175,6 +257,14 @@ module.exports = function (io) {
       reason,
     });
 
+    io.to(room.code).emit("leaderboard-updated", {
+      roomCode: room.code,
+      round: room.round,
+      totalRounds: room.totalRounds,
+      leaderboard: getLeaderboard(room.code),
+      isFinalRound: room.round >= room.totalRounds,
+    });
+
     const timeout = setTimeout(() => {
       roundEndTimeouts.delete(roomCode);
 
@@ -184,8 +274,6 @@ module.exports = function (io) {
         endingRounds.delete(roomCode);
         return;
       }
-
-      currentRoom.roundEnding = true;
 
       const result = startNextRound(roomCode);
 
@@ -201,15 +289,37 @@ module.exports = function (io) {
       }
 
       const nextRoom = result.room;
+
+      // Reset round-specific drawing and hint history.
+      nextRoom.revealedIndices = [];
+      nextRoom.drawHistory = [];
+
       endingRounds.delete(roomCode);
 
+      // ---------------- GAME OVER ----------------
+
       if (nextRoom.status === "finished") {
+        clearRoundTimer(roomCode);
+
         const highestScore = Math.max(
           0,
-          ...nextRoom.players.map((player) => player.score || 0)
+          ...nextRoom.players.map(
+            (player) => Number(player.score) || 0
+          )
         );
 
-        addSystemMessage(nextRoom, "Game over! Check the final scores.");
+        addSystemMessage(
+          nextRoom,
+          "Game over! Check the final scores."
+        );
+
+        io.to(nextRoom.code).emit("leaderboard-updated", {
+          roomCode: nextRoom.code,
+          round: nextRoom.round,
+          totalRounds: nextRoom.totalRounds,
+          leaderboard: getLeaderboard(nextRoom.code),
+          isFinalRound: true,
+        });
 
         io.to(nextRoom.code).emit("game-over", {
           roomCode: nextRoom.code,
@@ -221,6 +331,8 @@ module.exports = function (io) {
         sendPlayersUpdated(nextRoom);
         return;
       }
+
+      // ---------------- NEXT ROUND ----------------
 
       addSystemMessage(
         nextRoom,
@@ -235,11 +347,11 @@ module.exports = function (io) {
 
       io.to(nextRoom.drawerId).emit("word-options", {
         roomCode: nextRoom.code,
-        wordOptions: nextRoom.wordOptions,
+        wordOptions: nextRoom.wordOptions || [],
       });
 
       sendPlayersUpdated(nextRoom);
-    }, 2500);
+    }, 5000);
 
     roundEndTimeouts.set(roomCode, timeout);
   }
@@ -249,12 +361,12 @@ module.exports = function (io) {
   io.on("connection", (socket) => {
     console.log("Player connected:", socket.id);
 
-    // CREATE ROOM
+    // ---------------- CREATE ROOM ----------------
+
     socket.on("create-room", (data) => {
       let playerName;
       let settings = {};
 
-      // Support both old and new frontend payloads.
       if (typeof data === "string") {
         playerName = data;
       } else if (data && typeof data === "object") {
@@ -301,7 +413,8 @@ module.exports = function (io) {
       console.log("Room created:", room.code, room.settings);
     });
 
-    // JOIN ROOM
+    // ---------------- JOIN ROOM ----------------
+
     socket.on("join-room", (data) => {
       if (
         !data ||
@@ -310,7 +423,10 @@ module.exports = function (io) {
         typeof data.roomCode !== "string" ||
         !data.roomCode.trim()
       ) {
-        socket.emit("room-error", "Enter your name and room code.");
+        socket.emit(
+          "room-error",
+          "Enter your name and room code."
+        );
         return;
       }
 
@@ -351,7 +467,8 @@ module.exports = function (io) {
       );
     });
 
-    // START GAME
+    // ---------------- START GAME ----------------
+
     socket.on("start-game", (roomCode) => {
       const roomBeforeStart = getRoom(roomCode);
 
@@ -374,6 +491,8 @@ module.exports = function (io) {
       }
 
       const room = result.room;
+      room.revealedIndices = [];
+      room.drawHistory = [];
 
       addSystemMessage(room, "The game has started!");
 
@@ -381,17 +500,42 @@ module.exports = function (io) {
 
       io.to(room.drawerId).emit("word-options", {
         roomCode: room.code,
-        wordOptions: room.wordOptions,
+        wordOptions: room.wordOptions || [],
       });
 
       sendPlayersUpdated(room);
+
+      console.log("GAME STARTED:", {
+        roomCode: room.code,
+        drawerId: room.drawerId,
+        wordOptions: room.wordOptions,
+      });
     });
 
-    // RESTORE GAME STATE
+    // ---------------- RESTORE GAME STATE ----------------
+
     socket.on("get-game-state", (roomCode) => {
       const room = getRoom(roomCode);
 
-      if (!room || !socket.rooms.has(room.code)) return;
+      if (!room || !socket.rooms.has(room.code)) {
+        console.log("STATE RESTORE FAILED:", {
+          roomCode,
+          socketId: socket.id,
+          reason: "Room not found or socket not in room",
+        });
+
+        return;
+      }
+
+      console.log("RESTORING GAME STATE:", {
+        roomCode: room.code,
+        socketId: socket.id,
+        drawerId: room.drawerId,
+        status: room.status,
+        roundEnding: room.roundEnding,
+        currentWord: Boolean(room.currentWord),
+        wordOptions: room.wordOptions,
+      });
 
       socket.emit("chat-history", {
         roomCode: room.code,
@@ -399,13 +543,23 @@ module.exports = function (io) {
       });
 
       if (room.status === "finished") {
+        socket.emit("leaderboard-updated", {
+          roomCode: room.code,
+          round: room.round,
+          totalRounds: room.totalRounds,
+          leaderboard: getLeaderboard(room.code),
+          isFinalRound: true,
+        });
+
         socket.emit("game-over", {
           roomCode: room.code,
           players: room.players,
           winners: room.winners || [],
           highestScore: Math.max(
             0,
-            ...room.players.map((player) => player.score || 0)
+            ...room.players.map(
+              (player) => Number(player.score) || 0
+            )
           ),
         });
 
@@ -417,7 +571,32 @@ module.exports = function (io) {
         return;
       }
 
-      sendGameStarted(room);
+      sendGameStartedToPlayer(socket, room);
+
+      socket.emit("drawing-history", {
+        roomCode: room.code,
+        strokes: Array.isArray(room.drawHistory) ? room.drawHistory : [],
+      });
+
+      if (room.roundEnding) {
+        socket.emit("round-ended", {
+          roomCode: room.code,
+          round: room.round,
+          totalRounds: room.totalRounds,
+          players: room.players,
+          reason: "round-ending",
+        });
+
+        socket.emit("leaderboard-updated", {
+          roomCode: room.code,
+          round: room.round,
+          totalRounds: room.totalRounds,
+          leaderboard: getLeaderboard(room.code),
+          isFinalRound: room.round >= room.totalRounds,
+        });
+
+        return;
+      }
 
       if (socket.id === room.drawerId) {
         if (room.currentWord) {
@@ -428,14 +607,11 @@ module.exports = function (io) {
         } else {
           socket.emit("word-options", {
             roomCode: room.code,
-            wordOptions: room.wordOptions,
+            wordOptions: room.wordOptions || [],
           });
         }
       } else if (room.currentWord) {
-        socket.emit("word-hint", {
-          roomCode: room.code,
-          wordLength: room.currentWord.length,
-        });
+        sendWordHint(room, socket.id);
       }
 
       const timer = roundTimers.get(room.code);
@@ -453,7 +629,8 @@ module.exports = function (io) {
       sendPlayersUpdated(room);
     });
 
-    // REAL-TIME CHAT
+    // ---------------- REAL-TIME CHAT ----------------
+
     socket.on("send-chat-message", (data) => {
       if (
         !data ||
@@ -514,7 +691,8 @@ module.exports = function (io) {
       });
     });
 
-    // SELECT WORD
+    // ---------------- SELECT WORD ----------------
+
     socket.on("select-word", (data) => {
       if (!data || typeof data.roomCode !== "string") return;
 
@@ -534,20 +712,21 @@ module.exports = function (io) {
 
       const room = result.room;
 
+      room.revealedIndices = [];
+      room.drawHistory = [];
+
       io.to(room.drawerId).emit("word-selected", {
         roomCode: room.code,
         word: room.currentWord,
       });
 
-      socket.to(room.code).emit("word-hint", {
-        roomCode: room.code,
-        wordLength: room.currentWord.length,
-      });
+      sendWordHint(room);
 
       startRoundTimer(room);
     });
 
-    // DRAWING
+    // ---------------- DRAWING ----------------
+
     socket.on("drawing", (data) => {
       if (!data || typeof data.roomCode !== "string") return;
 
@@ -581,19 +760,49 @@ module.exports = function (io) {
         return;
       }
 
+      // Keep a server-side drawing history so Undo works for every player.
+      if (!Array.isArray(room.drawHistory)) room.drawHistory = [];
+
+      const segment = {
+        x: data.x,
+        y: data.y,
+        lastX: data.lastX,
+        lastY: data.lastY,
+        isStart: data.isStart === true,
+      };
+
+      if (segment.isStart || room.drawHistory.length === 0) {
+        room.drawHistory.push({
+          strokeId: data.strokeId || `${Date.now()}-${Math.random()}`,
+          color: data.color,
+          brushSize: data.brushSize,
+          segments: [segment],
+        });
+      } else {
+        const currentStroke = room.drawHistory[room.drawHistory.length - 1];
+        currentStroke.segments.push(segment);
+      }
+
+      // Prevent unbounded memory growth during a long round.
+      if (room.drawHistory.length > 500) {
+        room.drawHistory.shift();
+      }
+
       socket.to(room.code).emit("drawing", {
         roomCode: room.code,
+        strokeId: data.strokeId,
         x: data.x,
         y: data.y,
         lastX: data.lastX,
         lastY: data.lastY,
         color: data.color,
         brushSize: data.brushSize,
-        isStart: data.isStart === true,
+        isStart: segment.isStart,
       });
     });
 
-    // CLEAR CANVAS
+    // ---------------- CLEAR CANVAS ----------------
+
     socket.on("clear-canvas", (roomCode) => {
       const room = getRoom(roomCode);
 
@@ -602,12 +811,43 @@ module.exports = function (io) {
       if (socket.id !== room.drawerId || !room.currentWord) return;
       if (room.roundEnding) return;
 
+      room.drawHistory = [];
       socket.to(room.code).emit("clear-canvas", {
         roomCode: room.code,
       });
     });
 
-    // SUBMIT GUESS
+    // ---------------- UNDO LAST STROKE ----------------
+
+    socket.on("undo-drawing", (roomCode) => {
+      const room = getRoom(roomCode);
+
+      if (!room || !socket.rooms.has(room.code)) return;
+      if (room.status !== "playing") return;
+      if (socket.id !== room.drawerId || !room.currentWord) return;
+      if (room.roundEnding) return;
+
+      if (!Array.isArray(room.drawHistory)) room.drawHistory = [];
+      if (room.drawHistory.length === 0) {
+        socket.emit("undo-result", {
+          roomCode: room.code,
+          success: false,
+          message: "Nothing to undo.",
+        });
+        return;
+      }
+
+      room.drawHistory.pop();
+
+      // Send the complete remaining history so every canvas stays identical.
+      io.to(room.code).emit("drawing-history", {
+        roomCode: room.code,
+        strokes: room.drawHistory,
+      });
+    });
+
+    // ---------------- SUBMIT GUESS ----------------
+
     socket.on("submit-guess", (data) => {
       if (
         !data ||
@@ -663,6 +903,11 @@ module.exports = function (io) {
         pointsDeducted: result.pointsDeducted || 0,
       });
 
+      // Reveal one random letter only after a genuine wrong guess
+      if (!result.correct && !result.alreadyGuessed) {
+        revealNextLetter(room);
+      }
+
       if (result.correct && !result.alreadyGuessed) {
         addSystemMessage(
           room,
@@ -671,13 +916,13 @@ module.exports = function (io) {
       }
 
       sendPlayersUpdated(room);
-
-      if (result.roundComplete) {
-        endRound(room.code, "correct-guess");
-      }
+if (result.roundComplete) {
+  endRound(room.code, "correct-guess");
+}
     });
 
-    // DISCONNECT
+    // ---------------- DISCONNECT ----------------
+
     socket.on("disconnect", () => {
       console.log("Player disconnected:", socket.id);
     });
