@@ -15,6 +15,16 @@ const wordList = [
   "guitar",
   "rainbow",
   "mountain",
+  "Cat",
+  "Dog",
+  "Fish",
+  "Duck",
+  "Pig",
+  "Cow",
+  "Frog",
+  "Bee",
+  "Spider",
+  "Monkey"
 ];
 
 // GET RANDOM WORD OPTIONS
