@@ -1,432 +1,259 @@
+@import url("https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800;900&display=swap");
 
-/* ================================
-   GLOBAL RESET
-================================ */
-
-* {
+/* ---------- Page ---------- */
+html:has(.home-container),
+body:has(.home-container) {
   margin: 0;
-  padding: 0;
+  background: #2a4bb3;
+  overflow-x: hidden;
+}
+
+#root {
+  max-width: none !important;
+  width: 100%;
+  margin: 0 !important;
+  padding: 0 !important;
+  text-align: left;
+}
+
+/* ---------- Tokens (Game.css jaisi palette) ---------- */
+.home-container {
+  --bg: #2a4bb3;
+  --bg-dark: #1b3490;
+  --panel: #dfe5f3;
+  --field: #eef1f9;
+  --row-alt: #d0d8ec;
+  --ink: #1b2233;
+  --muted: #55607a;
+  --green: #2fc23f;
+  --green-dark: #1f9a2d;
+  --yellow: #ffd23f;
+  --radius: 6px;
+
+  width: 100vw;
+  position: relative;
+  left: 50%;
+  margin-left: -50vw;
+  min-height: 100vh;
+  padding: 24px 16px;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: "Nunito", system-ui, sans-serif;
+  color: var(--ink);
+  background-color: var(--bg);
+  background-image:
+    radial-gradient(circle at 12% 18%, rgba(255, 255, 255, 0.1) 0 18px, transparent 19px),
+    radial-gradient(circle at 78% 12%, rgba(255, 255, 255, 0.08) 0 26px, transparent 27px),
+    radial-gradient(circle at 88% 82%, rgba(255, 255, 255, 0.1) 0 20px, transparent 21px),
+    radial-gradient(circle at 22% 86%, rgba(255, 255, 255, 0.08) 0 30px, transparent 31px),
+    radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.05) 0 3px, transparent 4px);
+  background-size: 260px 260px, 340px 340px, 300px 300px, 380px 380px, 36px 36px;
+}
+
+.home-container *,
+.home-container *::before,
+.home-container *::after {
   box-sizing: border-box;
 }
 
-body {
-  min-height: 100vh;
-  font-family: Arial, Helvetica, sans-serif;
-  background: #0b0e13;
-  color: #f8fafc;
-}
-
-button,
-input,
-select {
-  font: inherit;
-}
-
-/* ================================
-   HOME PAGE BACKGROUND
-================================ */
-
-.home-container {
-  min-height: 100vh;
-  width: 100%;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  padding: 32px 20px;
-  background:
-    radial-gradient(
-      circle at top left,
-      rgba(99, 102, 241, 0.16),
-      transparent 35%
-    ),
-    radial-gradient(
-      circle at bottom right,
-      rgba(14, 165, 233, 0.10),
-      transparent 35%
-    ),
-    #0b0e13;
-}
-
-/* ================================
-   HOME CARD
-================================ */
-
+/* ---------- Card ---------- */
 .home-card {
   width: 100%;
-  max-width: 460px;
-  padding: 32px;
-  background: rgba(20, 25, 36, 0.96);
-  border: 1px solid #2c3445;
-  border-radius: 20px;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+  max-width: 440px;
+  padding: 28px 28px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  background: var(--panel);
+  border-radius: 10px;
+  box-shadow: 0 5px 0 rgba(0, 0, 0, 0.3);
 }
 
-/* ================================
-   HEADING AND DESCRIPTION
-================================ */
-
 .home-card h1 {
-  margin-bottom: 10px;
+  margin: 0;
   text-align: center;
-  font-size: clamp(26px, 5vw, 34px);
-  font-weight: 800;
-  letter-spacing: -0.8px;
+  font-size: 2.6rem;
+  font-weight: 900;
+  line-height: 1.1;
+  letter-spacing: -1px;
+  color: var(--bg) !important;
+  text-shadow: 3px 3px 0 var(--yellow);
 }
 
 .home-card > p {
-  margin-bottom: 28px;
-  color: #a5b0c3;
+  margin: 0 0 12px;
   text-align: center;
-  font-size: 14px;
-  line-height: 1.6;
+  font-size: 1rem;
+  font-weight: 800;
+  color: var(--muted);
 }
-
-/* ================================
-   LABELS
-================================ */
 
 .home-card > label {
-  display: block;
-  margin-bottom: 9px;
-  color: #dbe3f0;
-  font-size: 14px;
-  font-weight: 600;
+  margin-top: 4px;
+  font-size: 0.9rem;
+  font-weight: 800;
+  color: var(--ink);
 }
 
-/* ================================
-   INPUT FIELDS
-================================ */
-
-.home-card > input {
-  display: block;
+/* ---------- Inputs ---------- */
+.home-container input[type="text"],
+.home-container select {
   width: 100%;
-  min-width: 0;
-  padding: 13px 14px;
-  margin-bottom: 18px;
-  color: #ffffff;
-  background: #0d121c;
-  border: 1px solid #343e51;
-  border-radius: 10px;
-  outline: none;
-  transition:
-    border-color 0.2s ease,
-    box-shadow 0.2s ease;
-}
-
-.home-card > input::placeholder {
-  color: #78859a;
-}
-
-.home-card > input:focus {
-  border-color: #818cf8;
-  box-shadow: 0 0 0 3px rgba(129, 140, 248, 0.12);
-}
-
-/* ================================
-   ROOM SETTINGS CONTAINER
-================================ */
-
-.room-settings {
-  width: 100%;
-  margin: 22px 0;
-  padding: 14px;
-  background: #111722;
-  border: 1px solid #30394b;
-  border-radius: 13px;
-}
-
-/* ================================
-   ROOM SETTINGS TOGGLE BUTTON
-================================ */
-
-.settings-toggle {
-  width: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 13px 14px;
-  color: #ffffff;
-  background: #222b3b;
-  border: 1px solid #3b465c;
-  border-radius: 9px;
-  font-size: 15px;
+  padding: 12px 14px;
+  font-family: inherit;
+  font-size: 1rem;
   font-weight: 700;
-  text-align: left;
-  cursor: pointer;
-  transition:
-    background 0.2s ease,
-    border-color 0.2s ease,
-    transform 0.2s ease;
-}
-
-.settings-toggle:hover {
-  background: #2c374b;
-  border-color: #6678a0;
-}
-
-.settings-toggle:active {
-  transform: scale(0.99);
-}
-
-.settings-toggle:focus-visible {
-  outline: 2px solid #818cf8;
-  outline-offset: 3px;
-}
-
-/* ================================
-   SETTINGS GRID
-================================ */
-
-.settings-content {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 16px;
-  margin-top: 18px;
-  animation: settingsOpen 0.25s ease;
-}
-
-/* ================================
-   INDIVIDUAL SETTINGS
-================================ */
-
-.setting-group {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-  gap: 9px;
-}
-
-.setting-group label {
-  color: #cbd5e1;
-  font-size: 13px;
-  font-weight: 600;
-  line-height: 1.5;
-}
-
-/* ================================
-   DROPDOWN SELECT
-================================ */
-
-.setting-group select {
-  display: block;
-  width: 100%;
-  min-width: 0;
-  padding: 12px 10px;
-  color: #f8fafc;
-  background: #0b1019;
-  border: 1px solid #3b465c;
-  border-radius: 9px;
+  color: var(--ink) !important;
+  -webkit-text-fill-color: var(--ink);
+  caret-color: var(--ink);
+  background-color: var(--field);
+  border: 2px solid #b8c2dc;
+  border-radius: var(--radius);
   outline: none;
-  cursor: pointer;
-  transition:
-    border-color 0.2s ease,
-    box-shadow 0.2s ease;
+  transition: border-color 0.15s ease;
 }
 
-.setting-group select:hover {
-  border-color: #64748b;
+.home-container input[type="text"]::placeholder {
+  color: #6b7694;
+  opacity: 1;
 }
 
-.setting-group select:focus {
-  border-color: #818cf8;
-  box-shadow: 0 0 0 3px rgba(129, 140, 248, 0.12);
+.home-container input[type="text"]:focus,
+.home-container select:focus {
+  border-color: var(--bg);
 }
 
-.setting-group select option {
-  color: #ffffff;
-  background: #171c27;
-}
-
-/* ================================
-   CREATE ROOM AND JOIN ROOM BUTTONS
-================================ */
-
-.home-card > button:not(.settings-toggle) {
-  display: block;
+/* ---------- Buttons ---------- */
+.home-card > button {
   width: 100%;
-  min-height: 46px;
   padding: 13px 16px;
-  color: #ffffff;
-  background: linear-gradient(135deg, #6366f1, #4f46e5);
-  border: none;
-  border-radius: 10px;
-  font-size: 15px;
-  font-weight: 700;
+  font-family: inherit;
+  font-size: 1.2rem;
+  font-weight: 900;
+  color: #fff;
+  background: var(--green);
+  border: 0;
+  border-bottom: 5px solid var(--green-dark);
+  border-radius: var(--radius);
   cursor: pointer;
-  transition:
-    transform 0.2s ease,
-    box-shadow 0.2s ease,
-    filter 0.2s ease;
+  transition: transform 0.08s ease, filter 0.15s ease;
 }
 
-.home-card > button:not(.settings-toggle):hover {
-  filter: brightness(1.12);
-  box-shadow: 0 8px 22px rgba(79, 70, 229, 0.25);
+/* Join Room = blue */
+.home-card > button:last-of-type {
+  background: var(--bg);
+  border-bottom-color: var(--bg-dark);
+}
+
+.home-card > button:hover {
+  filter: brightness(1.1);
   transform: translateY(-1px);
 }
 
-.home-card > button:not(.settings-toggle):active {
-  transform: translateY(0);
+.home-card > button:active {
+  transform: translateY(3px);
+  border-bottom-width: 2px;
 }
 
-.home-card > button:not(.settings-toggle):focus-visible {
-  outline: 2px solid #a5b4fc;
-  outline-offset: 3px;
-}
-
-/* ================================
-   OR JOIN A ROOM
-================================ */
-
+/* ---------- OR divider ---------- */
 .home-card h4 {
+  margin: 8px 0 2px;
   display: flex;
   align-items: center;
   gap: 12px;
-  margin: 25px 0 18px;
-  color: #94a3b8;
-  font-size: 12px;
-  font-weight: 700;
-  text-align: center;
-  letter-spacing: 1.2px;
+  font-size: 0.8rem;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  color: var(--muted);
 }
 
 .home-card h4::before,
 .home-card h4::after {
   content: "";
   flex: 1;
-  height: 1px;
-  background: #30394b;
+  height: 2px;
+  background: #b8c2dc;
+  border-radius: 2px;
 }
 
-/* ================================
-   SETTINGS OPEN ANIMATION
-================================ */
-
-@keyframes settingsOpen {
-  from {
-    opacity: 0;
-    transform: translateY(-7px);
-  }
-
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+/* ---------- Room settings ---------- */
+.room-settings {
+  margin: 4px 0 6px;
+  border-radius: var(--radius);
+  overflow: hidden;
+  background: var(--row-alt);
 }
 
-/* ================================
-   TABLET RESPONSIVE
-================================ */
-
-@media (max-width: 768px) {
-  .home-container {
-    padding: 24px 16px;
-  }
-
-  .home-card {
-    max-width: 440px;
-    padding: 28px 24px;
-  }
-
-  .settings-content {
-    gap: 14px;
-  }
+.settings-toggle {
+  width: 100%;
+  padding: 11px 14px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-family: inherit;
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: #fff;
+  background: var(--bg-dark);
+  border: 0;
+  cursor: pointer;
 }
 
-/* ================================
-   MOBILE RESPONSIVE
-================================ */
+.settings-toggle:hover {
+  filter: brightness(1.15);
+}
 
+.settings-content {
+  padding: 14px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.setting-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.setting-group label {
+  font-size: 0.8rem;
+  font-weight: 800;
+  color: var(--muted);
+}
+
+.home-container select {
+  padding: 9px 10px;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+/* ---------- Responsive ---------- */
 @media (max-width: 480px) {
   .home-container {
+    padding: 12px 8px;
     align-items: flex-start;
-    padding: 24px 12px;
   }
 
   .home-card {
-    max-width: 100%;
-    padding: 23px 17px;
-    border-radius: 16px;
+    padding: 20px 16px;
   }
 
   .home-card h1 {
-    font-size: 27px;
-  }
-
-  .home-card > p {
-    margin-bottom: 24px;
-    font-size: 13px;
-  }
-
-  .room-settings {
-    margin: 18px 0;
-    padding: 11px;
-  }
-
-  .settings-toggle {
-    padding: 12px;
-    font-size: 14px;
+    font-size: 2.1rem;
   }
 
   .settings-content {
     grid-template-columns: 1fr;
-    gap: 15px;
-    margin-top: 16px;
-  }
-
-  .setting-group select {
-    padding: 12px;
-    font-size: 14px;
-  }
-
-  .home-card > input {
-    padding: 12px;
-    font-size: 14px;
-  }
-
-  .home-card > button:not(.settings-toggle) {
-    min-height: 45px;
-    font-size: 14px;
   }
 }
-
-/* ================================
-   SMALL MOBILE
-================================ */
-
-@media (max-width: 320px) {
-  .home-container {
-    padding: 16px 8px;
-  }
-
-  .home-card {
-    padding: 19px 12px;
-  }
-
-  .home-card h1 {
-    font-size: 23px;
-  }
-
-  .room-settings {
-    padding: 8px;
-  }
-
-  .settings-toggle {
-    padding: 11px 9px;
-    font-size: 13px;
-  }
-}
-
-/* ================================
-   REDUCED MOTION ACCESSIBILITY
-================================ */
 
 @media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
-    animation-duration: 0.01ms !important;
-    transition-duration: 0.01ms !important;
+  .home-card > button,
+  .home-container input,
+  .home-container select {
+    transition: none;
   }
 }

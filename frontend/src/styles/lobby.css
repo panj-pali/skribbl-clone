@@ -1,138 +1,229 @@
+@import url("https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800;900&display=swap");
 
-/* Page background */
-.lobby-container {
-  min-height: 100vh;
+/* ---------- Page ---------- */
+html:has(.lobby-container),
+body:has(.lobby-container) {
+  margin: 0;
+  background: #2a4bb3;
+  overflow-x: hidden;
+}
+
+#root {
+  max-width: none !important;
   width: 100%;
+  margin: 0 !important;
+  padding: 0 !important;
+  text-align: left;
+}
+
+/* ---------- Tokens (Game.css / Home.css jaisi palette) ---------- */
+.lobby-container {
+  --bg: #2a4bb3;
+  --bg-dark: #1b3490;
+  --panel: #dfe5f3;
+  --row-alt: #d0d8ec;
+  --ink: #1b2233;
+  --muted: #55607a;
+  --green: #2fc23f;
+  --green-dark: #1f9a2d;
+  --yellow: #ffd23f;
+  --radius: 6px;
+
+  width: 100vw;
+  position: relative;
+  left: 50%;
+  margin-left: -50vw;
+  min-height: 100vh;
+  padding: 24px 16px;
   box-sizing: border-box;
   display: flex;
-  justify-content: center;
   align-items: center;
-  padding: 30px 16px;
-  background: #171923;
-  color: #f7f7fb;
-  font-family: Arial, sans-serif;
+  justify-content: center;
+  font-family: "Nunito", system-ui, sans-serif;
+  color: var(--ink);
+  background-color: var(--bg);
+  background-image:
+    radial-gradient(circle at 12% 18%, rgba(255, 255, 255, 0.1) 0 18px, transparent 19px),
+    radial-gradient(circle at 78% 12%, rgba(255, 255, 255, 0.08) 0 26px, transparent 27px),
+    radial-gradient(circle at 88% 82%, rgba(255, 255, 255, 0.1) 0 20px, transparent 21px),
+    radial-gradient(circle at 22% 86%, rgba(255, 255, 255, 0.08) 0 30px, transparent 31px),
+    radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.05) 0 3px, transparent 4px);
+  background-size: 260px 260px, 340px 340px, 300px 300px, 380px 380px, 36px 36px;
 }
 
-/* Main lobby card */
+.lobby-container *,
+.lobby-container *::before,
+.lobby-container *::after {
+  box-sizing: border-box;
+}
+
+/* ---------- Card ---------- */
 .lobby-card {
   width: 100%;
-  max-width: 520px;
-  box-sizing: border-box;
-  padding: 38px 30px;
-  background: #252a3b;
-  border: 1px solid #343a50;
-  border-radius: 22px;
-  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.3);
-  text-align: center;
+  max-width: 460px;
+  padding: 28px 28px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  background: var(--panel);
+  border-radius: 10px;
+  box-shadow: 0 5px 0 rgba(0, 0, 0, 0.3);
 }
 
-/* Main heading */
 .lobby-card h1 {
-  margin: 0 0 16px;
-  font-size: 38px;
-  font-weight: 750;
+  margin: 0;
+  text-align: center;
+  font-size: 2.4rem;
+  font-weight: 900;
+  line-height: 1.1;
   letter-spacing: -1px;
-  color: #ffffff;
+  color: var(--bg) !important;
+  text-shadow: 3px 3px 0 var(--yellow);
 }
 
-/* Room code text */
-.lobby-card p {
-  margin: 12px 0 22px;
-  color: #d7daea;
-  font-size: 18px;
+/* ---------- Room code ---------- */
+.lobby-card > p {
+  margin: 8px 0 0;
+  text-align: center;
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: var(--muted) !important;
 }
 
-.lobby-card p strong {
-  color: #ffffff;
-  letter-spacing: 1.5px;
+.lobby-card > p strong {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 4px 14px;
+  font-size: 1.5rem;
+  font-weight: 900;
+  letter-spacing: 0.2em;
+  color: var(--ink);
+  background: var(--yellow);
+  border-radius: var(--radius);
+  box-shadow: 0 3px 0 rgba(0, 0, 0, 0.2);
 }
 
-/* Players heading */
-.lobby-card h3 {
-  margin: 26px 0 16px;
-  color: #ffffff;
-  font-size: 22px;
-}
-
-/* Player list */
-.lobby-card ul {
-  list-style: none;
-  padding: 0;
-  margin: 0 auto 28px;
+/* ---------- Buttons ---------- */
+.lobby-card > button {
   width: 100%;
-  max-width: 360px;
+  padding: 13px 16px;
+  font-family: inherit;
+  font-size: 1.2rem;
+  font-weight: 900;
+  color: #fff;
+  border: 0;
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: transform 0.08s ease, filter 0.15s ease;
+}
+
+/* Copy Code = chhota blue button */
+.lobby-card > button:first-of-type {
+  align-self: center;
+  width: auto;
+  padding: 8px 22px;
+  font-size: 0.95rem;
+  background: var(--bg);
+  border-bottom: 4px solid var(--bg-dark);
+}
+
+/* Start Game = bada green button */
+.lobby-card > button:nth-of-type(2) {
+  background: var(--green);
+  border-bottom: 5px solid var(--green-dark);
+}
+
+/* Back to Home = shaant grey-blue (last hone par upar wale rule ko override karta hai) */
+.lobby-card > button:last-of-type:not(:first-of-type) {
+  padding: 10px 16px;
+  font-size: 1rem;
+  color: var(--ink);
+  background: #b8c2dc;
+  border-bottom: 4px solid #98a4c4;
+}
+
+.lobby-card > button:hover {
+  filter: brightness(1.08);
+  transform: translateY(-1px);
+}
+
+.lobby-card > button:active {
+  transform: translateY(3px);
+}
+
+/* ---------- Players list ---------- */
+.lobby-card h3 {
+  margin: 10px 0 0;
+  padding: 8px 12px;
+  text-align: center;
+  font-size: 1rem;
+  font-weight: 800;
+  color: #fff !important;
+  background: var(--bg-dark);
+  border-radius: var(--radius) var(--radius) 0 0;
+}
+
+.lobby-card ul {
+  margin: -10px 0 4px;
+  padding: 0;
+  list-style: none;
+  max-height: 280px;
+  overflow-y: auto;
+  background: #eef1f9;
+  border-radius: 0 0 var(--radius) var(--radius);
 }
 
 .lobby-card li {
-  list-style: none;
-  padding: 13px 16px;
-  margin: 9px 0;
-  background: #30364b;
-  border: 1px solid #3c435b;
-  border-radius: 12px;
-  color: #f4f4fc;
-  font-size: 17px;
-  overflow-wrap: anywhere;
-  transition: background 0.2s ease, transform 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 14px;
+  font-size: 1rem;
+  font-weight: 800;
+  color: var(--ink);
 }
 
-.lobby-card li:hover {
-  background: #393f57;
-  transform: translateY(-2px);
+.lobby-card li:nth-child(even) {
+  background: var(--row-alt);
 }
 
-/* All buttons */
-.lobby-card button {
-  display: inline-block;
-  margin: 8px 5px;
-  padding: 13px 22px;
-  border: none;
-  border-radius: 11px;
-  background: #6c5ce7;
-  color: #ffffff;
-  font-size: 15px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: background 0.2s ease, transform 0.2s ease,
-    box-shadow 0.2s ease;
+/* har player ke aage rangeen dot (skribbl avatar jaisa) */
+.lobby-card li::before {
+  content: "";
+  flex: none;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #f4a261;
+  box-shadow: inset 0 -3px 0 rgba(0, 0, 0, 0.2);
 }
 
-.lobby-card button:hover {
-  background: #8173ff;
-  transform: translateY(-2px);
-  box-shadow: 0 7px 18px rgba(108, 92, 231, 0.25);
-}
+.lobby-card li:nth-child(4n + 2)::before { background: #4cc9f0; }
+.lobby-card li:nth-child(4n + 3)::before { background: #90be6d; }
+.lobby-card li:nth-child(4n + 4)::before { background: #c77dff; }
 
-.lobby-card button:active {
-  transform: translateY(0);
-}
-
-.lobby-card button:focus-visible {
-  outline: 3px solid #b8b0ff;
-  outline-offset: 3px;
-}
-
-/* Responsive design */
+/* ---------- Responsive ---------- */
 @media (max-width: 480px) {
   .lobby-container {
-    padding: 18px 12px;
+    padding: 12px 8px;
+    align-items: flex-start;
   }
 
   .lobby-card {
-    padding: 28px 18px;
-    border-radius: 18px;
+    padding: 20px 16px;
   }
 
   .lobby-card h1 {
-    font-size: 30px;
+    font-size: 2rem;
   }
 
-  .lobby-card h3 {
-    font-size: 20px;
+  .lobby-card > p strong {
+    font-size: 1.25rem;
   }
+}
 
-  .lobby-card button {
-    padding: 12px 17px;
-    font-size: 14px;
+@media (prefers-reduced-motion: reduce) {
+  .lobby-card > button {
+    transition: none;
   }
 }
